@@ -107,52 +107,55 @@ if st.session_state.pagina == "panel":
     
     supabase = conectar_supabase()
     
-    res_ingresos = supabase.table("cuotas").select("monto").eq("mes", mes_balance).eq("pagada", 1).execute().data
-    total_recaudado = sum(r["monto"] for r in res_ingresos) if res_ingresos else 0.0
-    
-    raw_socios = supabase.table("socios").select("id, nombre, monto_especial").execute().data
-    raw_actividades = supabase.table("socio_actividades").select("socio_id, actividad").execute().data
-    raw_cuotas = supabase.table("cuotas").select("socio_id, pagada").execute().data
-    
-    df_list = []
-    for s in raw_socios:
-        s_id = s["id"]
-        s_acts = [a["actividad"] for a in raw_actividades if a["socio_id"] == s_id]
-        acts_str = ", ".join(s_acts) if s_acts else "Sin Actividad"
-        tipo = "⭐ Arancel Especial" if s["monto_especial"] is not None else "Común"
-        pendientes = sum(1 for c in raw_cuotas if c["socio_id"] == s_id and c["pagada"] == 0)
+    try:
+        res_ingresos = supabase.table("cuotas").select("monto").eq("mes", mes_balance).eq("pagada", 1).execute().data
+        total_recaudado = sum(r["monto"] for r in res_ingresos) if res_ingresos else 0.0
         
-        df_list.append({"ID": s_id, "Nombre": s["nombre"], "Actividades": acts_str, "Tipo Arancel": tipo, "Cuotas Pendientes": pendientes})
+        raw_socios = supabase.table("socios").select("id, nombre, monto_especial").execute().data
+        raw_actividades = supabase.table("socio_actividades").select("socio_id, actividad").execute().data
+        raw_cuotas = supabase.table("cuotas").select("socio_id, pagada").execute().data
         
-    df = pd.DataFrame(df_list)
+        df_list = []
+        for s in raw_socios:
+            s_id = s["id"]
+            s_acts = [a["actividad"] for a in raw_actividades if a["socio_id"] == s_id]
+            acts_str = ", ".join(s_acts) if s_acts else "Sin Actividad"
+            tipo = "⭐ Arancel Especial" if s["monto_especial"] is not None else "Común"
+            pendientes = sum(1 for c in raw_cuotas if c["socio_id"] == s_id and c["pagada"] == 0)
+            
+            df_list.append({"ID": s_id, "Nombre": s["nombre"], "Actividades": acts_str, "Tipo Arancel": tipo, "Cuotas Pendientes": pendientes})
+            
+        df = pd.DataFrame(df_list)
 
-    c1, c2, c3, c4 = st.columns(4)
-    if not df.empty:
-        c1.metric("Total Socios", len(df))
-        morosos = len(df[df['Cuotas Pendientes'] > 0])
-        c2.metric("Morosos", morosos)
-        with c2:
-            if morosos > 0:
-                if st.button("🔍 Ir a cobrar", type="secondary", key="btn_ir_a_cobrar_seguro"):
-                    st.session_state.pagina = "caja"
-                    st.rerun()
-        c3.metric("Al día", len(df) - morosos)
-    else:
-        c1.metric("Total Socios", 0)
-        c2.metric("Morosos", 0)
-        c3.metric("Al día", 0)
-    c4.metric(f"💰 Recaudación {mes_balance}", f"${total_recaudado:,.2f}")
+        c1, c2, c3, c4 = st.columns(4)
+        if not df.empty:
+            c1.metric("Total Socios", len(df))
+            morosos = len(df[df['Cuotas Pendientes'] > 0])
+            c2.metric("Morosos", morosos)
+            with c2:
+                if morosos > 0:
+                    if st.button("🔍 Ir a cobrar", type="secondary", key="btn_ir_a_cobrar_seguro"):
+                        st.session_state.pagina = "caja"
+                        st.rerun()
+            c3.metric("Al día", len(df) - morosos)
+        else:
+            c1.metric("Total Socios", 0)
+            c2.metric("Morosos", 0)
+            c3.metric("Al día", 0)
+        c4.metric(f"💰 Recaudación {mes_balance}", f"${total_recaudado:,.2f}")
 
-    st.markdown("---")
-    st.write("### Listado General de Socios")
-    if not df.empty:
-        def resaltar_morosos(val):
-            if isinstance(val, int) or isinstance(val, float):
-                return f"color: {'red' if val > 0 else 'green'}"
-            return ''
-        st.dataframe(df.style.map(resaltar_morosos, subset=['Cuotas Pendientes']), use_container_width=True, key="tabla_socios_view")
-    else:
-        st.info("Aún no hay socios en la base de datos.")
+        st.markdown("---")
+        st.write("### Listado General de Socios")
+        if not df.empty:
+            def resaltar_morosos(val):
+                if isinstance(val, int) or isinstance(val, float):
+                    return f"color: {'red' if val > 0 else 'green'}"
+                return ''
+            st.dataframe(df.style.map(resaltar_morosos, subset=['Cuotas Pendientes']), use_container_width=True, key="tabla_socios_view")
+        else:
+            st.info("Aún no hay socios en la base de datos.")
+    except Exception as e:
+        st.error("Asegurate de haber corrido las tablas de SQL en el panel de Supabase.")
 
 # --- GESTIÓN DE SOCIOS ---
 elif st.session_state.pagina == "socios":
@@ -172,7 +175,7 @@ elif st.session_state.pagina == "socios":
                         st.success(f"Socio {nombre} registrado con éxito.")
                         st.rerun()
                     else:
-                        st.error("Error: El DNI ya existe o hubo un problema.")
+                        st.error("Error al registrar: Verificá que el DNI no exista.")
                 else:
                     st.error("Complete los campos requeridos.")
 
@@ -191,42 +194,45 @@ elif st.session_state.pagina == "socios":
                         st.success(f"¡Beneficio asignado a {nombre_esp}!")
                         st.rerun()
                     else:
-                        st.error("Error: El DNI ya existe o hubo un problema.")
+                        st.error("Error al registrar: Verificá que el DNI no exista.")
 
 # --- CAJA Y COBRANZAS ---
 elif st.session_state.pagina == "caja":
     st.subheader("Módulo de Cobro - Listado de Socios Deudores")
     supabase = conectar_supabase()
     
-    raw_cuotas_pendientes = supabase.table("cuotas").select("socio_id").eq("pagada", 0).execute().data
-    
-    if raw_cuotas_pendientes:
-        ids_deudores = list(set([c["socio_id"] for c in raw_cuotas_pendientes]))
-        raw_socios_deudores = supabase.table("socios").select("id, nombre").in_("id", ids_deudores).execute().data
+    try:
+        raw_cuotas_pendientes = supabase.table("cuotas").select("socio_id").eq("pagada", 0).execute().data
         
-        nombres_deudores = {f"{r['id']} - {r['nombre']}": r['id'] for r in raw_socios_deudores}
-        st.info(f"⚠️ Actualmente hay {len(nombres_deudores)} socios con deudas pendientes.")
-        seleccion = st.selectbox("Seleccione el socio deudor:", list(nombres_deudores.keys()), key="sel_socio_deudor")
-        socio_id = nombres_deudores[seleccion]
+        if raw_cuotas_pendientes:
+            ids_deudores = list(set([c["socio_id"] for c in raw_cuotas_pendientes]))
+            raw_socios_deudores = supabase.table("socios").select("id, nombre").in_("id", ids_deudores).execute().data
+            
+            nombres_deudores = {f"{r['id']} - {r['nombre']}": r['id'] for r in raw_socios_deudores}
+            st.info(f"⚠️ Actualmente hay {len(nombres_deudores)} socios con deudas pendientes.")
+            seleccion = st.selectbox("Seleccione el socio deudor:", list(nombres_deudores.keys()), key="sel_socio_deudor")
+            socio_id = nombres_deudores[seleccion]
 
-        st.markdown("---")
-        cuotas = supabase.table("cuotas").select("id, mes, monto").eq("socio_id", socio_id).eq("pagada", 0).execute().data
-        
-        if cuotas:
-            st.write("### Cuotas pendientes de cobro:")
-            for row in cuotas:
-                key_btn = f"pay_unique_{row['id']}_{row['mes']}"
-                c_mes, c_monto, c_estado, c_accion = st.columns(4)
-                c_mes.write(f"📅 **{row['mes']}**")
-                c_monto.write(f"${row['monto']:,.2f}")
-                c_estado.write("🔴 PENDIENTE")
-                if c_accion.button("Cobrar", key=key_btn):
-                    pagar_cuota(row['id'])
-                    st.toast(f"Cobro exitoso!")
-                    st.rerun()
-    else:
-        st.balloons()
-        st.success("😎 ¡Qué tranquilidad! No se registran deudas.")
+            st.markdown("---")
+            cuotas = supabase.table("cuotas").select("id, mes, monto").eq("socio_id", socio_id).eq("pagada", 0).execute().data
+            
+            if cuotas:
+                st.write("### Cuotas pendientes de cobro:")
+                for row in cuotas:
+                    key_btn = f"pay_unique_{row['id']}_{row['mes']}"
+                    c_mes, c_monto, c_estado, c_accion = st.columns(4)
+                    c_mes.write(f"📅 **{row['mes']}**")
+                    c_monto.write(f"${row['monto']:,.2f}")
+                    c_estado.write("🔴 PENDIENTE")
+                    if c_accion.button("Cobrar", key=key_btn):
+                        pagar_cuota(row['id'])
+                        st.toast(f"Cobro exitoso!")
+                        st.rerun()
+        else:
+            st.balloons()
+            st.success("😎 ¡Qué tranquilidad! No se registran deudas.")
+    except Exception as e:
+        st.error("Error de comunicación con Supabase.")
 
 # --- ADMINISTRACIÓN ---
 elif st.session_state.pagina == "admin":
