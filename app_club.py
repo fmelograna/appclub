@@ -4,14 +4,31 @@ import pandas as pd
 from datetime import datetime
 
 # --- 1. CONFIGURACIÓN Y CONEXIÓN A LA NUBE ---
-# ⚠️ REEMPLAZÁ ESTOS DATOS CON LOS DE TU PANEL DE SUPABASE:
+
 SUPABASE_URL = "https://rgvixnnaedevjkfzrtsp.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJndml4bm5hZWRldmprZnpydHNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzY0MTksImV4cCI6MjA5NDcxMjQxOX0.q5NeRcDiGRwfoDaQe0pYMOV3D--zz2Ox-pOhL-AS3iQ"
 
 @st.cache_resource
-def conectar_supabase() -> Client:
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
-
+def conectar_supabase():
+    # Validaciones previas para evitar que el constructor colapse
+    if not SUPABASE_URL or "TU_PROYECTO" in SUPABASE_URL:
+        st.error("❌ Error: No cambiaste la URL de ejemplo en el código de GitHub.")
+        st.stop()
+    if not SUPABASE_KEY or "TU_ANON_KEY" in SUPABASE_KEY:
+        st.error("❌ Error: No cambiaste la KEY de ejemplo en el código de GitHub.")
+        st.stop()
+        
+    try:
+        # Forzamos la limpieza de strings por si se coló un espacio invisible o un salto de línea
+        url_limpia = str(SUPABASE_URL).strip().rstrip("/")
+        key_limpia = str(SUPABASE_KEY).strip()
+        
+        return create_client(url_limpia, key_limpia)
+    except Exception as e:
+        st.error(e)
+        st.error(f"❌ Error crítico al inicializar el cliente HTTP de Supabase. Tipo de error: {type(e).__name__}")
+        st.info("Revisá que la ANON_KEY no se haya copiado cortada en GitHub.")
+        st.stop()
 # --- 2. FUNCIONES DE LÓGICA CON SUPABASE ---
 def registrar_socio_completo(id_s, nombre, actividades, monto_especial=None):
     supabase = conectar_supabase()
