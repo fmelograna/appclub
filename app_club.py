@@ -5,7 +5,7 @@ from datetime import datetime
 
 # --- 1. CONFIGURACIÓN Y CONEXIÓN A LA NUBE ---
 # ⚠️ REEMPLAZÁ ESTOS DATOS CON LOS DE TU PANEL DE SUPABASE:
-SUPABASE_URL = "https://rgvixnnaedevjkfzrtsp.supabase.co/rest/v1/"
+SUPABASE_URL = "https://rgvixnnaedevjkfzrtsp.supabase.co/rest/v1"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJndml4bm5hZWRldmprZnpydHNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzY0MTksImV4cCI6MjA5NDcxMjQxOX0.q5NeRcDiGRwfoDaQe0pYMOV3D--zz2Ox-pOhL-AS3iQ"
 
 @st.cache_resource
